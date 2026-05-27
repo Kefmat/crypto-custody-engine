@@ -4,11 +4,6 @@ import { KeyRotator } from './utils/rotator.js';
 import { MemoryZeroizer } from './utils/zeroizer.js';
 import { Buffer } from 'buffer';
 
-/**
- * Executes an enterprise key management lifecycle simulation.
- * Handles dual-control sharing, secure memory zeroization, and zero-downtime rotation.
- * @author Kevin Matarewicz
- */
 function runEnterpriseLifecycleCeremony(): void {
     console.log('=================================================');
     console.log('    Enterprise Cryptographic Lifecycle Engine    ');
@@ -18,10 +13,17 @@ function runEnterpriseLifecycleCeremony(): void {
     
     // 1. Key Generation & Initial Multi-Party Sharding
     let activeMasterKey: Buffer | null = SymmetricEngine.generateKey();
-    console.log(`[Phase 1] Active Key Initialized (Hex): ${activeMasterKey.toString('hex').substring(0, 32)}...`);
+    const cleanKeyHex = activeMasterKey.toString('hex');
+    console.log(`[Phase 1] Active Key Initialized (Hex): ${cleanKeyHex.substring(0, 32)}...`);
 
     const runtimeShares = ThresholdEngine.splitSecret(activeMasterKey, 3, 5);
     console.log(`[Phase 2] Executed 3-of-5 Split-Trust Sharding Ceremonies.`);
+
+    // DIAGNOSTIC CHECK: Reconstruct immediately to verify math integrity
+    const diagnosticBytes = ThresholdEngine.reconstructSecret([runtimeShares[0], runtimeShares[2], runtimeShares[4]]);
+    const diagnosticHex = Buffer.from(diagnosticBytes).toString('hex');
+    console.log(`[Diagnostic] Immediate Key Reconstruction: ${diagnosticHex.substring(0, 32)}...`);
+    console.log(`[Diagnostic] Match Original Key? ${cleanKeyHex === diagnosticHex ? 'YES (Math Passed)' : 'NO (Math Broken)'}`);
 
     // 2. Secure Data Injection
     let storagePayload = SymmetricEngine.encrypt(operationalSecret, activeMasterKey);
@@ -29,20 +31,16 @@ function runEnterpriseLifecycleCeremony(): void {
 
     // 3. Force Programmatic Zeroization of the working key to protect memory space
     MemoryZeroizer.zeroizeBuffer(activeMasterKey);
-    activeMasterKey = null; // Sever pointer reference
+    activeMasterKey = null; 
     console.log(`[Phase 4] Working Key Overwritten with Zeroes & Purged from RAM.`);
 
     // 4. Automated Key Rotation Verification Cycle
     console.log('\n--- Initiating Compliance-Driven Automated Key Rotation ---');
     
-    // Recover the key first using valid threshold shares to simulate an authorized cron-job rotation
     const recoveredBytes = ThresholdEngine.reconstructSecret([runtimeShares[0], runtimeShares[2], runtimeShares[4]]);
-    
-    // REMEDIATION: Safely cast the decoupled primitive numeric array into an isolated Node.js Buffer
     const authorizedRecoveryKey = Buffer.from(recoveredBytes);
     console.log(`[Rotation] Key Reconstructed for Migration: ${authorizedRecoveryKey.toString('hex').substring(0, 32)}...`);
 
-    // Perform the lifecycle translation rotation step
     const migrationResults = KeyRotator.rotatePayloadKey(storagePayload, authorizedRecoveryKey);
     
     storagePayload = migrationResults.newPayload;
@@ -51,11 +49,9 @@ function runEnterpriseLifecycleCeremony(): void {
     console.log(`[Rotation] Legacy Key Zeroized via Overwrite Pipeline.`);
     console.log(`[Rotation] Migration Successful. New Ciphertext: ${storagePayload.ciphertext.substring(0, 32)}...`);
 
-    // Final verification proving the old data can be read from the new key seamlessly
     const finalVerificationText = SymmetricEngine.decrypt(storagePayload, freshActiveKey);
     console.log(`\nVerified Production Asset Integrity: "${finalVerificationText}" [LIFECYCLE SECURE]`);
 
-    // Final Cleanup
     MemoryZeroizer.zeroizeBuffer(freshActiveKey);
     freshActiveKey = null;
     console.log('[Cleanup] System memory cleared down to absolute zero footprint.');

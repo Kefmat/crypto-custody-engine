@@ -16,21 +16,21 @@ export interface KeyShare {
  * @author Kevin Matarewicz
  */
 export class ThresholdEngine {
-    private static readonly PRIMITIVE = 0x11b; 
-    private static readonly EXP_TABLE = new Uint8Array(256);
+    private static readonly PRIMITIVE = 0x11b; // AES field polynomial: x^8 + x^4 + x^3 + x + 1
+    private static readonly EXP_TABLE = new Uint8Array(512);
     private static readonly LOG_TABLE = new Uint8Array(256);
 
     static {
         let x = 1;
         for (let i = 0; i < 255; i++) {
             this.EXP_TABLE[i] = x;
+            this.EXP_TABLE[i + 255] = x; // Double table size to completely prevent out-of-bounds modulus wrap bugs
             this.LOG_TABLE[x] = i;
             x <<= 1;
             if (x & 0x100) {
                 x ^= this.PRIMITIVE;
             }
         }
-        this.EXP_TABLE[255] = this.EXP_TABLE[0];
     }
 
     /**
@@ -47,14 +47,12 @@ export class ThresholdEngine {
         const secretBytes = Array.from(secret);
         const shares: KeyShare[][] = Array.from({ length: totalShares }, () => []);
 
-        // ENTROPY OPTIMIZATION: Allocate all random coefficients in a single operational block
         const totalEntropyNeeded = secretBytes.length * (threshold - 1);
         const entropyPool = randomBytes(totalEntropyNeeded);
         let poolIndex = 0;
 
         for (let b = 0; b < secretBytes.length; b++) {
             const secretByte = secretBytes[b];
-            
             const coefficients = new Array<number>(threshold);
             coefficients[0] = secretByte; 
             
@@ -105,9 +103,8 @@ export class ThresholdEngine {
                 for (let j = 0; j < providedShares.length; j++) {
                     if (i !== j) {
                         const xj = providedShares[j][b].x;
-                        const numerator = xj;
-                        const denominator = xi ^ xj;
-                        const fraction = this.galoisDivide(numerator, denominator);
+                        // Lagrange formula basis constant: product of (xj / (xj ^ xi))
+                        const fraction = this.galoisDivide(xj, xj ^ xi);
                         li = this.galoisMultiply(li, fraction);
                     }
                 }
@@ -121,12 +118,12 @@ export class ThresholdEngine {
 
     private static galoisMultiply(a: number, b: number): number {
         if (a === 0 || b === 0) return 0;
-        return this.EXP_TABLE[(this.LOG_TABLE[a] + this.LOG_TABLE[b]) % 255];
+        return this.EXP_TABLE[this.LOG_TABLE[a] + this.LOG_TABLE[b]];
     }
 
     private static galoisDivide(a: number, b: number): number {
         if (b === 0) throw new Error('Division by zero inside Galois Field scope.');
         if (a === 0) return 0;
-        return this.EXP_TABLE[(this.LOG_TABLE[a] - this.LOG_TABLE[b] + 255) % 255];
+        return this.EXP_TABLE[this.LOG_TABLE[a] - this.LOG_TABLE[b] + 255];
     }
 }
