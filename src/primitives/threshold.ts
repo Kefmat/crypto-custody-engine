@@ -47,17 +47,26 @@ export class ThresholdEngine {
             throw new Error('Invalid threshold parameter mapping configuration.');
         }
 
+        // DEEP COPY REMEDIATION: Clone the secret buffer into a completely isolated chunk of memory
+        // This ensures subsequent programmatic zeroization of the original key does not corrupt our shares.
+        const secretClone = Buffer.from(secret);
+
         // Initialize empty share lists for each individual participant slice
         const shares: KeyShare[][] = Array.from({ length: totalShares }, () => []);
 
-        // Process every byte of the secret independently across a unique polynomial curve
-        for (let b = 0; b < secret.length; b++) {
-            const secretByte = secret[b];
+        // Process every byte of the secret clone independently across a unique polynomial curve
+        for (let b = 0; b < secretClone.length; b++) {
+            const secretByte = secretClone[b];
             
             // Generate random coefficients for a polynomial of degree (threshold - 1)
             const coefficients = new Uint8Array(threshold);
             coefficients[0] = secretByte; // f(0) is our secret byte
-            randomBytes(threshold - 1).copy(Buffer.from(coefficients.buffer, 1, threshold - 1));
+            
+            // Safe, isolated byte assignment to avoid sharing underlying ArrayBuffer views
+            const randomCoeffs = randomBytes(threshold - 1);
+            for (let i = 1; i < threshold; i++) {
+                coefficients[i] = randomCoeffs[i - 1];
+            }
 
             // Evaluate the polynomial for each participant X coordinate (1 to totalShares)
             for (let x = 1; x <= totalShares; x++) {
