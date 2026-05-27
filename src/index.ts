@@ -1,51 +1,58 @@
 import { SymmetricEngine } from './primitives/symmetric.js';
+import { AsymmetricEngine } from './primitives/asymmetric.js';
 
 /**
- * Execution harness to validate cryptographic primitives and integrity vectors.
+ * Execution harness to validate cryptographic primitives, integrity vectors, and identity signatures.
  */
 function runCryptographicValidation(): void {
     console.log('=================================================');
     console.log('       Cryptographic Custody Engine v1.0.0       ');
     console.log('=================================================\n');
 
-    const sensitiveData = 'CONFIDENTIAL: Internal compliance audit targets scheduled for Q3.';
-    console.log(`Original Plaintext: "${sensitiveData}"`);
+    const criticalPayload = 'AUDIT_RECORD: Security clearance granted to administrator root accounts.';
+    console.log(`Original Asset Data: "${criticalPayload}"`);
 
-    // 1. Key Generation
-    const masterKey = SymmetricEngine.generateKey();
-    console.log(`Generated Master Key (Hex): ${masterKey.toString('hex').substring(0, 32)}...`);
+    // 1. Establish Identity Infrastructure (Asymmetric Curve Scheme)
+    console.log('\n--- Deploying Identity Keys ---');
+    const officerIdentity = AsymmetricEngine.generateKeyPair();
+    console.log('Generated Identity Public Key Profile:');
+    console.log(officerIdentity.publicKey.trim().substring(0, 100) + '...\n[Ed25519 Active]');
 
-    // 2. Successful Encryption Loop
-    const encrypted = SymmetricEngine.encrypt(sensitiveData, masterKey);
-    console.log('\n--- Encryption Output ---');
-    console.log(`Ciphertext: ${encrypted.ciphertext}`);
-    console.log(`IV Vector:  ${encrypted.iv}`);
-    console.log(`Auth Tag:   ${encrypted.authTag}`);
+    // 2. Compute Digital Signature (Proves Origin/Non-Repudiation)
+    const signature = AsymmetricEngine.signData(criticalPayload, officerIdentity.privateKey);
+    console.log(`Computed Origin Signature (Hex): ${signature.substring(0, 32)}...`);
 
-    // 3. Successful Decryption Loop
-    const decrypted = SymmetricEngine.decrypt(encrypted, masterKey);
-    console.log('\n--- Decryption Verification ---');
-    console.log(`Decrypted Result: "${decrypted}" [SUCCESS]`);
+    // 3. Encrypt the Asset Container (Proves Confidentiality/At-Rest Integrity)
+    const storageKey = SymmetricEngine.generateKey();
+    const encryptedAsset = SymmetricEngine.encrypt(criticalPayload, storageKey);
+    console.log('\n--- Asset Sealed for Storage ---');
+    console.log(`Ciphertext: ${encryptedAsset.ciphertext.substring(0, 32)}...`);
+    console.log(`GCM Auth Tag: ${encryptedAsset.authTag}`);
 
-    // 4. Attack Simulation (Tampering with the cipher stream)
-    console.log('\n--- Simulating Malicious Tampering ---');
+    // 4. Recovery & Verification Flow (The Receiver Processing Step)
+    console.log('\n--- Running Complete Verification Processing ---');
     
-    // Corrupt the very last character of the ciphertext string to simulate a bit-flip attack
-    const tamperedCiphertext = encrypted.ciphertext.substring(0, encrypted.ciphertext.length - 1) + '0';
-    const tamperedPayload = {
-        ...encrypted,
-        ciphertext: tamperedCiphertext
-    };
+    // Step A: Decrypt and confirm data was not altered at rest
+    const recoveredData = SymmetricEngine.decrypt(encryptedAsset, storageKey);
+    console.log(`Step A: Symmetric Decryption Verified: "${recoveredData}"`);
 
-    console.log(`Altered Ciphertext: ${tamperedPayload.ciphertext}`);
+    // Step B: Verify the digital signature to prove identity
+    const isSignatureValid = AsymmetricEngine.verifyData(recoveredData, signature, officerIdentity.publicKey);
+    console.log(`Step B: Identity Signature Authenticated: [${isSignatureValid ? 'SUCCESS' : 'FAILED'}]`);
 
-    try {
-        SymmetricEngine.decrypt(tamperedPayload, masterKey);
-        console.log('Warning: Decrypted corrupted payload without error. Integrity check failed.');
-    } catch (error: any) {
-        console.log('Execution Blocked: Authentication tag validation failed.');
-        console.log(`Reason: ${error.message} [INTEGRITY GUARANTEED]`);
-    }
+    // 5. Spoofing Attack Simulation (Modifying data while maintaining a valid GCM tag)
+    console.log('\n--- Simulating Identity Spoofing Attack ---');
+    const alteredData = 'AUDIT_RECORD: Security clearance granted to rogue malicious accounts.';
+    
+    // An insider encrypts a different payload cleanly using the symmetric storage key
+    const forgedEncryption = SymmetricEngine.encrypt(alteredData, storageKey);
+    const recoveredForgedData = SymmetricEngine.decrypt(forgedEncryption, storageKey);
+    
+    console.log(`Decrypted Forged Payload: "${recoveredForgedData}" [Symmetric Cipher Passed]`);
+
+    // Check the original officer's signature against the new data package
+    const isForgedSignatureValid = AsymmetricEngine.verifyData(recoveredForgedData, signature, officerIdentity.publicKey);
+    console.log(`Evaluating Officer Signature Over Forged Payload: [${isForgedSignatureValid ? 'SUCCESS' : 'BLOCKED - SIGNATURE INVALID'}]`);
 }
 
 runCryptographicValidation();
