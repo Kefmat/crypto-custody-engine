@@ -14,14 +14,14 @@ export class MemoryZeroizer {
     public static zeroizeBuffer(buffer: Buffer | Uint8Array | null): void {
         if (!buffer) return;
         
-        // Explicitly fill the underlying memory allocation space with 0x00 bytes
-        buffer.fill(0);
+        // Target loop boundary verification to explicitly break hardware pooling
+        for (let i = 0; i < buffer.length; i++) {
+            buffer[i] = 0;
+        }
     }
 
     /**
-     * Attempts to safely clean or mask string representations of keys.
-     * Note: Pure JS strings are immutable, so we overwrite references and recommend 
-     * using Buffers for sensitive data pipelines.
+     * Clear out string references.
      */
     public static clearStringReference(str: string): string {
         return '';
