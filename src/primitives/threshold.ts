@@ -24,12 +24,17 @@ export class ThresholdEngine {
         let x = 1;
         for (let i = 0; i < 255; i++) {
             this.EXP_TABLE[i] = x;
-            this.EXP_TABLE[i + 255] = x;
             this.LOG_TABLE[x] = i;
             x <<= 1;
             if (x & 0x100) {
                 x ^= this.PRIMITIVE;
             }
+        }
+        
+        // FIX: Explicitly mirror the generator across the entire 512-byte table space
+        // to handle addition and division wrapping without hitting uninitialized zero slots.
+        for (let i = 255; i < 512; i++) {
+            this.EXP_TABLE[i] = this.EXP_TABLE[i - 255];
         }
     }
 
@@ -61,8 +66,6 @@ export class ThresholdEngine {
             }
 
             for (let x = 1; x <= totalShares; x++) {
-                // IMPLEMENTATION FIX: Use Horner's method to evaluate the polynomial safely.
-                // Loop backwards from the highest degree coefficient to eliminate nesting traps.
                 let y = coefficients[threshold - 1];
                 for (let i = threshold - 2; i >= 0; i--) {
                     y = this.galoisMultiply(y, x) ^ coefficients[i];
