@@ -1,58 +1,56 @@
 import { SymmetricEngine } from './primitives/symmetric.js';
 import { AsymmetricEngine } from './primitives/asymmetric.js';
+import { ThresholdEngine } from './primitives/threshold.js';
 
-/**
- * Execution harness to validate cryptographic primitives, integrity vectors, and identity signatures.
- */
-function runCryptographicValidation(): void {
+function runKeyCustodyCeremony(): void {
     console.log('=================================================');
     console.log('       Cryptographic Custody Engine v1.0.0       ');
     console.log('=================================================\n');
 
-    const criticalPayload = 'AUDIT_RECORD: Security clearance granted to administrator root accounts.';
-    console.log(`Original Asset Data: "${criticalPayload}"`);
+    const coreSecretAsset = 'TOP-SECRET: Operational encryption infrastructure configurations blueprint.';
 
-    // 1. Establish Identity Infrastructure (Asymmetric Curve Scheme)
-    console.log('\n--- Deploying Identity Keys ---');
-    const officerIdentity = AsymmetricEngine.generateKeyPair();
-    console.log('Generated Identity Public Key Profile:');
-    console.log(officerIdentity.publicKey.trim().substring(0, 100) + '...\n[Ed25519 Active]');
+    // 1. Generate the initial root key framework
+    const masterStorageKey = SymmetricEngine.generateKey();
+    console.log(`Generated Vault Root Key (Hex): ${masterStorageKey.toString('hex')}\n`);
 
-    // 2. Compute Digital Signature (Proves Origin/Non-Repudiation)
-    const signature = AsymmetricEngine.signData(criticalPayload, officerIdentity.privateKey);
-    console.log(`Computed Origin Signature (Hex): ${signature.substring(0, 32)}...`);
-
-    // 3. Encrypt the Asset Container (Proves Confidentiality/At-Rest Integrity)
-    const storageKey = SymmetricEngine.generateKey();
-    const encryptedAsset = SymmetricEngine.encrypt(criticalPayload, storageKey);
-    console.log('\n--- Asset Sealed for Storage ---');
-    console.log(`Ciphertext: ${encryptedAsset.ciphertext.substring(0, 32)}...`);
-    console.log(`GCM Auth Tag: ${encryptedAsset.authTag}`);
-
-    // 4. Recovery & Verification Flow (The Receiver Processing Step)
-    console.log('\n--- Running Complete Verification Processing ---');
+    // 2. Perform Key Ceremony Sharding (Split master key into 5 shares, requiring 3 to rebuild)
+    const Threshold_M = 3;
+    const Total_Shares_N = 5;
+    console.log(`--- Executing Multi-Party Key Split (${Threshold_M}-of-${Total_Shares_N} Scheme) ---`);
+    const runtimeShares = ThresholdEngine.splitSecret(masterStorageKey, Threshold_M, Total_Shares_N);
     
-    // Step A: Decrypt and confirm data was not altered at rest
-    const recoveredData = SymmetricEngine.decrypt(encryptedAsset, storageKey);
-    console.log(`Step A: Symmetric Decryption Verified: "${recoveredData}"`);
+    for (let i = 0; i < Total_Shares_N; i++) {
+        // Sample outputting a small chunk of each user's unique share slice
+        const sampleHex = runtimeShares[i].map(s => s.y).join('').substring(0, 16);
+        console.log(`Officer Account [${i + 1}] Share Slice: KeyHolderX(${runtimeShares[i][0].x}) Data: ${sampleHex}...`);
+    }
 
-    // Step B: Verify the digital signature to prove identity
-    const isSignatureValid = AsymmetricEngine.verifyData(recoveredData, signature, officerIdentity.publicKey);
-    console.log(`Step B: Identity Signature Authenticated: [${isSignatureValid ? 'SUCCESS' : 'FAILED'}]`);
+    // 3. Encrypt data and instantly purge the master storage key from volatile system memory
+    const sealedAsset = SymmetricEngine.encrypt(coreSecretAsset, masterStorageKey);
+    console.log('\n--- Asset Locked & Root Key Programmatically Purged from Memory ---');
+    console.log(`Stored Secure Ciphertext: ${sealedAsset.ciphertext.substring(0, 48)}...`);
 
-    // 5. Spoofing Attack Simulation (Modifying data while maintaining a valid GCM tag)
-    console.log('\n--- Simulating Identity Spoofing Attack ---');
-    const alteredData = 'AUDIT_RECORD: Security clearance granted to rogue malicious accounts.';
+    // 4. Simulate Reconstruction Failure (Insufficient Authorization - Only 2 Officers show up)
+    console.log('\n--- Operational Request: Presenting Insufficient Shares (2-of-5) ---');
+    const inadequateBatch = [runtimeShares[0], runtimeShares[1]];
+    const failedKeyRecovery = ThresholdEngine.reconstructSecret(inadequateBatch);
     
-    // An insider encrypts a different payload cleanly using the symmetric storage key
-    const forgedEncryption = SymmetricEngine.encrypt(alteredData, storageKey);
-    const recoveredForgedData = SymmetricEngine.decrypt(forgedEncryption, storageKey);
-    
-    console.log(`Decrypted Forged Payload: "${recoveredForgedData}" [Symmetric Cipher Passed]`);
+    try {
+        SymmetricEngine.decrypt(sealedAsset, failedKeyRecovery);
+        console.log('Critical Leak: Decrypted data using a corrupt key recovery assembly!');
+    } catch (error: any) {
+        console.log(`Access Denied: Reconstructed key is cryptographically invalid.`);
+        console.log(`Decryption Engine Message: ${error.message} [CUSTODY MATRIX SECURE]`);
+    }
 
-    // Check the original officer's signature against the new data package
-    const isForgedSignatureValid = AsymmetricEngine.verifyData(recoveredForgedData, signature, officerIdentity.publicKey);
-    console.log(`Evaluating Officer Signature Over Forged Payload: [${isForgedSignatureValid ? 'SUCCESS' : 'BLOCKED - SIGNATURE INVALID'}]`);
+    // 5. Simulate Reconstruction Success (Compliance Requirements Met - 3 Officers show up)
+    console.log(`\n--- Operational Request: Presenting Compliant Threshold Shares (3-of-5) ---`);
+    const compliantBatch = [runtimeShares[0], runtimeShares[4], runtimeShares[2]]; // Officers 1, 5, and 3
+    const recoveredMasterKey = ThresholdEngine.reconstructSecret(compliantBatch);
+    console.log(`Successfully Reconstructed Key (Hex): ${recoveredMasterKey.toString('hex')}`);
+
+    const authorizedRestoration = SymmetricEngine.decrypt(sealedAsset, recoveredMasterKey);
+    console.log(`Restored Cryptographic Core Asset: "${authorizedRestoration}" [CEREMONY COMPLETE]`);
 }
 
-runCryptographicValidation();
+runKeyCustodyCeremony();
