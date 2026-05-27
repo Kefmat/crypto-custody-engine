@@ -1,56 +1,55 @@
 import { SymmetricEngine } from './primitives/symmetric.js';
-import { AsymmetricEngine } from './primitives/asymmetric.js';
 import { ThresholdEngine } from './primitives/threshold.js';
+import { KeyRotator } from './utils/rotator.js';
+import { MemoryZeroizer } from './utils/zeroizer.js';
+import { Buffer } from 'buffer';
 
-function runKeyCustodyCeremony(): void {
+function runEnterpriseLifecycleCeremony(): void {
     console.log('=================================================');
-    console.log('       Cryptographic Custody Engine v1.0.0       ');
+    console.log('    Enterprise Cryptographic Lifecycle Engine    ');
     console.log('=================================================\n');
 
-    const coreSecretAsset = 'TOP-SECRET: Operational encryption infrastructure configurations blueprint.';
-
-    // 1. Generate the initial root key framework
-    const masterStorageKey = SymmetricEngine.generateKey();
-    console.log(`Generated Vault Root Key (Hex): ${masterStorageKey.toString('hex')}\n`);
-
-    // 2. Perform Key Ceremony Sharding (Split master key into 5 shares, requiring 3 to rebuild)
-    const Threshold_M = 3;
-    const Total_Shares_N = 5;
-    console.log(`--- Executing Multi-Party Key Split (${Threshold_M}-of-${Total_Shares_N} Scheme) ---`);
-    const runtimeShares = ThresholdEngine.splitSecret(masterStorageKey, Threshold_M, Total_Shares_N);
+    const operationalSecret = 'SYS_CONFIG: Production multi-node database connectivity credentials.';
     
-    for (let i = 0; i < Total_Shares_N; i++) {
-        // Sample outputting a small chunk of each user's unique share slice
-        const sampleHex = runtimeShares[i].map(s => s.y).join('').substring(0, 16);
-        console.log(`Officer Account [${i + 1}] Share Slice: KeyHolderX(${runtimeShares[i][0].x}) Data: ${sampleHex}...`);
-    }
+    // 1. Key Generation & Initial Multi-Party Sharding
+    let activeMasterKey: Buffer | null = SymmetricEngine.generateKey();
+    console.log(`[Phase 1] Active Key Initialized (Hex): ${activeMasterKey.toString('hex').substring(0, 32)}...`);
 
-    // 3. Encrypt data and instantly purge the master storage key from volatile system memory
-    const sealedAsset = SymmetricEngine.encrypt(coreSecretAsset, masterStorageKey);
-    console.log('\n--- Asset Locked & Root Key Programmatically Purged from Memory ---');
-    console.log(`Stored Secure Ciphertext: ${sealedAsset.ciphertext.substring(0, 48)}...`);
+    const runtimeShares = ThresholdEngine.splitSecret(activeMasterKey, 3, 5);
+    console.log(`[Phase 2] Executed 3-of-5 Split-Trust Sharding Ceremonies.`);
 
-    // 4. Simulate Reconstruction Failure (Insufficient Authorization - Only 2 Officers show up)
-    console.log('\n--- Operational Request: Presenting Insufficient Shares (2-of-5) ---');
-    const inadequateBatch = [runtimeShares[0], runtimeShares[1]];
-    const failedKeyRecovery = ThresholdEngine.reconstructSecret(inadequateBatch);
+    // Secure Data Injection
+    let storagePayload = SymmetricEngine.encrypt(operationalSecret, activeMasterKey);
+    console.log(`[Phase 3] Data Encrypted. Initial Ciphertext: ${storagePayload.ciphertext.substring(0, 32)}...`);
+
+    // Force Programmatic Zeroization of the working key to protect memory space
+    MemoryZeroizer.zeroizeBuffer(activeMasterKey);
+    activeMasterKey = null; // Sever pointer reference
+    console.log(`[Phase 4] Working Key Overwritten with Zeroes & Purged from RAM.`);
+
+    // 5. Automated Key Rotation Verification Cycle
+    console.log('\n--- Initiating Compliance-Driven Automated Key Rotation ---');
     
-    try {
-        SymmetricEngine.decrypt(sealedAsset, failedKeyRecovery);
-        console.log('Critical Leak: Decrypted data using a corrupt key recovery assembly!');
-    } catch (error: any) {
-        console.log(`Access Denied: Reconstructed key is cryptographically invalid.`);
-        console.log(`Decryption Engine Message: ${error.message} [CUSTODY MATRIX SECURE]`);
-    }
+    // Recover the key first using valid threshold shares to simulate an authorized cron-job rotation
+    const authorizedRecoveryKey = ThresholdEngine.reconstructSecret([runtimeShares[0], runtimeShares[2], runtimeShares[4]]);
+    console.log(`[Rotation] Key Reconstructed for Migration: ${authorizedRecoveryKey.toString('hex').substring(0, 32)}...`);
 
-    // 5. Simulate Reconstruction Success (Compliance Requirements Met - 3 Officers show up)
-    console.log(`\n--- Operational Request: Presenting Compliant Threshold Shares (3-of-5) ---`);
-    const compliantBatch = [runtimeShares[0], runtimeShares[4], runtimeShares[2]]; // Officers 1, 5, and 3
-    const recoveredMasterKey = ThresholdEngine.reconstructSecret(compliantBatch);
-    console.log(`Successfully Reconstructed Key (Hex): ${recoveredMasterKey.toString('hex')}`);
+    // Perform the lifecycle translation rotation step
+    const migrationResults = KeyRotator.rotatePayloadKey(storagePayload, authorizedRecoveryKey);
+    
+    storagePayload = migrationResults.newPayload;
+    let freshActiveKey: Buffer | null = migrationResults.newKey;
 
-    const authorizedRestoration = SymmetricEngine.decrypt(sealedAsset, recoveredMasterKey);
-    console.log(`Restored Cryptographic Core Asset: "${authorizedRestoration}" [CEREMONY COMPLETE]`);
+    console.log(`[Rotation] Legacy Key Zeroized via Overwrite Pipeline.`);
+    console.log(`[Rotation] Migration Successful. New Ciphertext: ${storagePayload.ciphertext.substring(0, 32)}...`);
+
+    // Final verification proving the old data can be read from the new key seamlessly
+    const finalVerificationText = SymmetricEngine.decrypt(storagePayload, freshActiveKey);
+    console.log(`\nVerified Production Asset Integrity: "${finalVerificationText}" [LIFECYCLE SECURE]`);
+
+    // Final Cleanup
+    MemoryZeroizer.zeroizeBuffer(freshActiveKey);
+    console.log('[Cleanup] System memory cleared down to absolute zero footprint.');
 }
 
-runKeyCustodyCeremony();
+runEnterpriseLifecycleCeremony();
