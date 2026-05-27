@@ -4,6 +4,11 @@ import { KeyRotator } from './utils/rotator.js';
 import { MemoryZeroizer } from './utils/zeroizer.js';
 import { Buffer } from 'buffer';
 
+/**
+ * Executes an enterprise key management lifecycle simulation.
+ * Handles dual-control sharing, secure memory zeroization, and zero-downtime rotation.
+ * @author Kevin Matarewicz
+ */
 function runEnterpriseLifecycleCeremony(): void {
     console.log('=================================================');
     console.log('    Enterprise Cryptographic Lifecycle Engine    ');
@@ -33,8 +38,8 @@ function runEnterpriseLifecycleCeremony(): void {
     // Recover the key first using valid threshold shares to simulate an authorized cron-job rotation
     const recoveredBytes = ThresholdEngine.reconstructSecret([runtimeShares[0], runtimeShares[2], runtimeShares[4]]);
     
-    // REMEDIATION: Safely cast the Uint8Array interface into a standard Node.js Buffer
-    const authorizedRecoveryKey = Buffer.from(recoveredBytes.buffer, recoveredBytes.byteOffset, recoveredBytes.byteLength);
+    // REMEDIATION: Safely cast the decoupled primitive numeric array into an isolated Node.js Buffer
+    const authorizedRecoveryKey = Buffer.from(recoveredBytes);
     console.log(`[Rotation] Key Reconstructed for Migration: ${authorizedRecoveryKey.toString('hex').substring(0, 32)}...`);
 
     // Perform the lifecycle translation rotation step
