@@ -14,7 +14,7 @@ export interface AsymmetricKeyPair {
 /**
  * Implements digital signature operations using the Ed25519 curve scheme.
  * Ensures data origin authentication and absolute transactional non-repudiation.
- * @author Kevin Matarewicz
+ * @author Kefmat
  */
 export class AsymmetricEngine {
 

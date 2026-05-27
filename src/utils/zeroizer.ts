@@ -1,29 +1,20 @@
 import { Buffer } from 'buffer';
 
 /**
- * Utility handling secure data sanitization inside volatile system memory.
- * Overwrites sensitive buffer vectors before garbage collection loops.
- * @author Kevin Matarewicz
+ * Utility class to provide secure memory sanitization.
+ * Overwrites sensitive buffers with zeroes to prevent memory forensics.
+ * @author Kefmat
+ * @version 1.0.1
  */
 export class MemoryZeroizer {
-
     /**
-     * Programmatically overwrites a Buffer with zeroes to destroy key material.
-     * @param buffer The targeted sensitive binary material buffer.
+     * Wipes a buffer or typed array by overwriting all indices with 0x00.
+     * Checks for existence and the presence of the .fill() method.
+     * * @param data The buffer or typed array to securely clear.
      */
-    public static zeroizeBuffer(buffer: Buffer | Uint8Array | null): void {
-        if (!buffer) return;
-        
-        // Target loop boundary verification to explicitly break hardware pooling
-        for (let i = 0; i < buffer.length; i++) {
-            buffer[i] = 0;
+    public static zeroizeBuffer(data: any): void {
+        if (data && typeof data.fill === 'function') {
+            data.fill(0);
         }
-    }
-
-    /**
-     * Clear out string references.
-     */
-    public static clearStringReference(str: string): string {
-        return '';
     }
 }
