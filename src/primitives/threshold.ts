@@ -44,20 +44,22 @@ export class ThresholdEngine {
             throw new Error('Invalid threshold parameter mapping configuration.');
         }
 
-        // Pull out primitives to separate completely from underlying V8 binary references
         const secretBytes = Array.from(secret);
         const shares: KeyShare[][] = Array.from({ length: totalShares }, () => []);
+
+        // ENTROPY OPTIMIZATION: Allocate all random coefficients in a single operational block
+        const totalEntropyNeeded = secretBytes.length * (threshold - 1);
+        const entropyPool = randomBytes(totalEntropyNeeded);
+        let poolIndex = 0;
 
         for (let b = 0; b < secretBytes.length; b++) {
             const secretByte = secretBytes[b];
             
-            // Fix: Use standard primitive JavaScript arrays to completely bypass internal ArrayBuffer allocations
             const coefficients = new Array<number>(threshold);
             coefficients[0] = secretByte; 
             
-            const randomCoeffs = randomBytes(threshold - 1);
             for (let i = 1; i < threshold; i++) {
-                coefficients[i] = randomCoeffs[i - 1];
+                coefficients[i] = entropyPool[poolIndex++];
             }
 
             for (let x = 1; x <= totalShares; x++) {
