@@ -24,7 +24,7 @@ export class ThresholdEngine {
         let x = 1;
         for (let i = 0; i < 255; i++) {
             this.EXP_TABLE[i] = x;
-            this.EXP_TABLE[i + 255] = x; // Double table size to completely prevent out-of-bounds modulus wrap bugs
+            this.EXP_TABLE[i + 255] = x;
             this.LOG_TABLE[x] = i;
             x <<= 1;
             if (x & 0x100) {
@@ -61,17 +61,11 @@ export class ThresholdEngine {
             }
 
             for (let x = 1; x <= totalShares; x++) {
-                let y = coefficients[0];
-                
-                for (let i = 1; i < threshold; i++) {
-                    const coeff = coefficients[i];
-                    if (coeff !== 0) {
-                        let xToTheI = 1;
-                        for (let j = 0; j < i; j++) {
-                            xToTheI = this.galoisMultiply(xToTheI, x);
-                        }
-                        y ^= this.galoisMultiply(coeff, xToTheI);
-                    }
+                // IMPLEMENTATION FIX: Use Horner's method to evaluate the polynomial safely.
+                // Loop backwards from the highest degree coefficient to eliminate nesting traps.
+                let y = coefficients[threshold - 1];
+                for (let i = threshold - 2; i >= 0; i--) {
+                    y = this.galoisMultiply(y, x) ^ coefficients[i];
                 }
                 
                 shares[x - 1].push({ x, y: y.toString(16).padStart(2, '0') });
@@ -103,7 +97,6 @@ export class ThresholdEngine {
                 for (let j = 0; j < providedShares.length; j++) {
                     if (i !== j) {
                         const xj = providedShares[j][b].x;
-                        // Lagrange formula basis constant: product of (xj / (xj ^ xi))
                         const fraction = this.galoisDivide(xj, xj ^ xi);
                         li = this.galoisMultiply(li, fraction);
                     }
