@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# Production Build Output
+dist/
+
+# Local Environment & Logs
+.env
+*.log
+npm-debug.log*
