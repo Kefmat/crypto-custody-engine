@@ -1,5 +1,4 @@
 import { randomBytes } from 'crypto';
-import { Buffer } from 'buffer';
 
 /**
  * Structured container for an isolated cryptographic key share.
@@ -17,12 +16,10 @@ export interface KeyShare {
  * @author Kevin Matarewicz
  */
 export class ThresholdEngine {
-    // Prime number for Galois Field (GF(256)) arithmetic definitions
-    private static readonly PRIMITIVE = 0x11b; // AES field polynomial: x^8 + x^4 + x^3 + x + 1
+    private static readonly PRIMITIVE = 0x11b; 
     private static readonly EXP_TABLE = new Uint8Array(256);
     private static readonly LOG_TABLE = new Uint8Array(256);
 
-    // Statically initialize log/exp lookup tables for rapid Galois Field multiplication
     static {
         let x = 1;
         for (let i = 0; i < 255; i++) {
@@ -42,33 +39,28 @@ export class ThresholdEngine {
      * @param threshold (M) The exact minimum number of shares needed to reconstruct.
      * @param totalShares (N) The total number of shares to generate.
      */
-    public static splitSecret(secret: Buffer, threshold: number, totalShares: number): KeyShare[][] {
+    public static splitSecret(secret: Uint8Array, threshold: number, totalShares: number): KeyShare[][] {
         if (threshold > totalShares || threshold < 2 || totalShares > 255) {
             throw new Error('Invalid threshold parameter mapping configuration.');
         }
 
-        // DEEP COPY REMEDIATION: Clone the secret buffer into a completely isolated chunk of memory
-        // This ensures subsequent programmatic zeroization of the original key does not corrupt our shares.
-        const secretClone = Buffer.from(secret);
+        // HARD ISOLATION BREAK: Pull the raw numeric values out of the object reference array completely.
+        // This stops V8 from optimizing strings into direct views of the mutable Buffer memory space.
+        const secretBytes = Array.from(secret);
 
-        // Initialize empty share lists for each individual participant slice
         const shares: KeyShare[][] = Array.from({ length: totalShares }, () => []);
 
-        // Process every byte of the secret clone independently across a unique polynomial curve
-        for (let b = 0; b < secretClone.length; b++) {
-            const secretByte = secretClone[b];
+        for (let b = 0; b < secretBytes.length; b++) {
+            const secretByte = secretBytes[b];
             
-            // Generate random coefficients for a polynomial of degree (threshold - 1)
             const coefficients = new Uint8Array(threshold);
-            coefficients[0] = secretByte; // f(0) is our secret byte
+            coefficients[0] = secretByte; 
             
-            // Safe, isolated byte assignment to avoid sharing underlying ArrayBuffer views
             const randomCoeffs = randomBytes(threshold - 1);
             for (let i = 1; i < threshold; i++) {
                 coefficients[i] = randomCoeffs[i - 1];
             }
 
-            // Evaluate the polynomial for each participant X coordinate (1 to totalShares)
             for (let x = 1; x <= totalShares; x++) {
                 let y = coefficients[0];
                 
@@ -83,7 +75,9 @@ export class ThresholdEngine {
                     }
                 }
                 
-                shares[x - 1].push({ x, y: y.toString(16).padStart(2, '0') });
+                // Deep clone the string literal completely by forcing instantiation
+                const stringValue = (' ' + y.toString(16).padStart(2, '0')).slice(1);
+                shares[x - 1].push({ x, y: stringValue });
             }
         }
 
@@ -93,15 +87,14 @@ export class ThresholdEngine {
     /**
      * Reconstructs the master key using Lagrange polynomial interpolation over GF(256).
      * @param providedShares An array containing at least M selected key share bundles.
-     * @returns The recovered 32-byte master key Buffer.
+     * @returns The recovered 32-byte master key Uint8Array.
      */
-    public static reconstructSecret(providedShares: KeyShare[][]): Buffer {
+    public static reconstructSecret(providedShares: KeyShare[][]): Uint8Array {
         if (providedShares.length === 0) throw new Error('No shares submitted for evaluation.');
         
         const byteLength = providedShares[0].length;
-        const secretBuffer = Buffer.alloc(byteLength);
+        const secretBuffer = new Uint8Array(byteLength);
 
-        // Reconstruct each byte independently using Lagrange constants
         for (let b = 0; b < byteLength; b++) {
             let secretByte = 0;
 
