@@ -44,16 +44,15 @@ export class ThresholdEngine {
             throw new Error('Invalid threshold parameter mapping configuration.');
         }
 
-        // HARD ISOLATION BREAK: Pull the raw numeric values out of the object reference array completely.
-        // This stops V8 from optimizing strings into direct views of the mutable Buffer memory space.
+        // Pull out primitives to separate completely from underlying V8 binary references
         const secretBytes = Array.from(secret);
-
         const shares: KeyShare[][] = Array.from({ length: totalShares }, () => []);
 
         for (let b = 0; b < secretBytes.length; b++) {
             const secretByte = secretBytes[b];
             
-            const coefficients = new Uint8Array(threshold);
+            // Fix: Use standard primitive JavaScript arrays to completely bypass internal ArrayBuffer allocations
+            const coefficients = new Array<number>(threshold);
             coefficients[0] = secretByte; 
             
             const randomCoeffs = randomBytes(threshold - 1);
@@ -75,9 +74,7 @@ export class ThresholdEngine {
                     }
                 }
                 
-                // Deep clone the string literal completely by forcing instantiation
-                const stringValue = (' ' + y.toString(16).padStart(2, '0')).slice(1);
-                shares[x - 1].push({ x, y: stringValue });
+                shares[x - 1].push({ x, y: y.toString(16).padStart(2, '0') });
             }
         }
 
@@ -87,13 +84,13 @@ export class ThresholdEngine {
     /**
      * Reconstructs the master key using Lagrange polynomial interpolation over GF(256).
      * @param providedShares An array containing at least M selected key share bundles.
-     * @returns The recovered 32-byte master key Uint8Array.
+     * @returns A standard JavaScript number array to maintain absolute decoupling.
      */
-    public static reconstructSecret(providedShares: KeyShare[][]): Uint8Array {
+    public static reconstructSecret(providedShares: KeyShare[][]): number[] {
         if (providedShares.length === 0) throw new Error('No shares submitted for evaluation.');
         
         const byteLength = providedShares[0].length;
-        const secretBuffer = new Uint8Array(byteLength);
+        const secretBuffer = new Array<number>(byteLength);
 
         for (let b = 0; b < byteLength; b++) {
             let secretByte = 0;
