@@ -17,14 +17,14 @@ Built with TypeScript and the Node.js native crypto primitives, the engine model
 The platform is engineered around three decoupled cryptographic vectors to provide layered defenses.
 
 ```mermaid
-graph LR
-    A[Data Payload] --> B[Confidentiality & Integrity]
-    A --> C[Identity Provenance]
-    A --> D[Dual-Control Recovery]
+flowchart LR
+    A["Data Payload"] --> B["Confidentiality & Integrity"]
+    A --> C["Identity Provenance"]
+    A --> D["Dual-Control Recovery"]
 
-    B --> B1[AES-256-GCM (AEAD)]
-    C --> C1[Ed25519 Signatures]
-    D --> D1[Shamir's Secret Sharing]
+    B --> B1["AES-256-GCM (AEAD)"]
+    C --> C1["Ed25519 Signatures"]
+    D --> D1["Shamir's Secret Sharing"]
 ```
 
 ## Core Security Pillars
